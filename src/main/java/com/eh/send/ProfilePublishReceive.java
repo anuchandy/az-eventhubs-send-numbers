@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+
 public final class ProfilePublishReceive implements Closeable {
     private final EventHubProducerAsyncClient producer;
     private final EventHubConsumerAsyncClient receiver;
@@ -24,11 +25,12 @@ public final class ProfilePublishReceive implements Closeable {
     public static void main(String[] args) throws IOException {
         ProfilePublishReceive app = new ProfilePublishReceive();
 
-        final int durationInSec = 600;   // Keep "publish and receive" for this duration.
-        final String partitionId = "16"; // The "empty" partition to send and receive.
+        final int warmupMessages = 10;   // The number of messages to "publish and receive" during warmup period.
+        final int durationInSec = 600;   // The total duration to "publish and receive" (includes warmup and measurement).
+        final String partitionId = "2"; // The "empty" partition to send and receive.
 
         try {
-            app.warmupAndMeasure(durationInSec, partitionId);
+            app.warmupAndMeasure(warmupMessages, durationInSec, partitionId);
         } finally {
             app.close();
         }
@@ -47,9 +49,9 @@ public final class ProfilePublishReceive implements Closeable {
                 .buildAsyncConsumerClient();
     }
 
-    // First warmup the publisher and receiver by transmitting 10 messages then
+    // First warmup the publisher and receiver by transmitting {@code warmupMessages} messages then
     // measure for a maximum duration of {@code durationInSec}.
-    public void warmupAndMeasure(int durationInSec, String partitionId) {
+    public void warmupAndMeasure(int warmupMessages, int durationInSec, String partitionId) {
         // Obtain the partition receiver flux.
         Flux<PartitionEvent> recvFlux = receiver.receiveFromPartition(partitionId, EventPosition.latest());
 
@@ -94,7 +96,7 @@ public final class ProfilePublishReceive implements Closeable {
         final long measureEnd[] = new long[1];
 
         publishReceive
-                .skip(10) // Warm-up: send-receive 10 messages.
+                .skip(warmupMessages) // Warm-up: send-receive N messages.
                 .doOnNext(ignored ->{
                     if (!startedMeasurement[0]) {
                         System.out.println("Warmup completed.. starting measurement");
