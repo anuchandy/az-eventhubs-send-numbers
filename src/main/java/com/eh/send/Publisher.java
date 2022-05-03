@@ -5,6 +5,7 @@ import com.azure.messaging.eventhubs.EventHubClientBuilder;
 import com.azure.messaging.eventhubs.EventHubProducerAsyncClient;
 import reactor.core.publisher.Mono;
 
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
 final class Publisher implements AutoCloseable {
@@ -17,10 +18,7 @@ final class Publisher implements AutoCloseable {
     }
 
     public CompletableFuture<Void> publish(byte[] data) {
-        Mono<Void> mono = producer.createBatch().flatMap(batch -> {
-            batch.tryAdd(new EventData(data));
-            return producer.send(batch);
-        });
+        Mono<Void> mono = producer.send(Collections.singletonList(new EventData(data)));
         return mono.toFuture();
     }
 

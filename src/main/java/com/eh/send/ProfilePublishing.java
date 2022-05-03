@@ -25,6 +25,8 @@ public class ProfilePublishing {
             // argument indicating the mode of publish - 'f' for fire&forget, 'c' for coordinated.
             // Note: fire&forget means - send N events per second, such that don't wait for the last N events pushed to
             //                           complete before sending another N in the next second.
+            //       coordinated means - send N events in a second, but before commencing another N events in next second,
+            //                           block for previous batch complete. this means subsequent sending may start late.
             final String fORc = args[2];
 
             if (fORc == null || (!"f".equalsIgnoreCase(fORc) && !"c".equalsIgnoreCase(fORc))) {
