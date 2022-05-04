@@ -57,29 +57,31 @@ public final class ProfilePublishReceive implements Closeable {
 
         Flux<Tuple2<SimpleEntry<String, Long>, SimpleEntry<String, Long>>> publishReceive =
                 Mono.fromSupplier(() -> {
-                    // create a unique id.
+                    // create a unique message id.
                     return UUID.randomUUID().toString();
                 })
-                .repeat() // keep flowing the unique ids.
-                .concatMap(uid -> {
+                .repeat() // keep flowing the message ids
+                .concatMap(sendMessageId -> {
                     final Long sendTime = System.currentTimeMillis();
-                    // publish a message with unique id as message id.
-                    return this.producer.send(Collections.singletonList(new EventData(uid).setMessageId(uid)),
+                    // send a message with the message id.
+                    final EventData message = new EventData(sendMessageId).setMessageId(sendMessageId);
+                    return this.producer.send(
+                                    Collections.singletonList(message),
                                     new SendOptions().setPartitionId(partitionId))
-                            .thenReturn(new SimpleEntry<>(uid, sendTime));
+                            .thenReturn(new SimpleEntry<>(sendMessageId, sendTime));
                 }, 1)
-                .zipWith(recvFlux.map(event -> {
+                .zipWith(recvFlux.map(message -> {
                     // receives a message
-                    final String id = event.getData().getMessageId();
+                    final String recvMessageId = message.getData().getMessageId();
                     final Long recvTime = System.currentTimeMillis();
 
-                    return new SimpleEntry<>(id, recvTime);
+                    return new SimpleEntry<>(recvMessageId, recvTime);
                 }), 1)
                 .doOnNext(entry -> {
-                    final String sendId = entry.getT1().getKey();
-                    final String recvId = entry.getT2().getKey();
-                    // assert we receive what we send
-                    if (!sendId.equalsIgnoreCase(recvId)) {
+                    final String sendMessageId = entry.getT1().getKey();
+                    final String recvMessageId = entry.getT2().getKey();
+                    // assert we received what we sent
+                    if (!sendMessageId.equalsIgnoreCase(recvMessageId)) {
                         throw new IllegalStateException("Mismatched send and receive message ids");
                     }
 
